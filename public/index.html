@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Empleados</title>
+  <style>
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; }
+    th { background: #eee; }
+    button { margin: 2px; }
+    input[type="text"], input[type="number"] { width: 90%; }
+  </style>
+</head>
+<body>
+  <h2>Lista de empleados</h2>
+  <input type="text" id="buscar" placeholder="Buscar por nombre o cargo">
+  <button onclick="buscar()">Buscar</button>
+  <button onclick="cargarDatos()">Refrescar</button>
+  <table id="tabla">
+    <thead>
+      <tr>
+        <th>ID</th><th>Nombre</th><th>Cargo</th><th>Sueldo</th><th>Acciones</th>
+      </tr>
+      <tr>
+        <td></td>
+        <td><input id="nuevo-nombre" placeholder="Nombre"></td>
+        <td><input id="nuevo-cargo" placeholder="Cargo"></td>
+        <td><input id="nuevo-sueldo" type="number" placeholder="Sueldo"></td>
+        <td><button onclick="crear()">Crear</button></td>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <script>
+    function cargarDatos(q = '') {
+      fetch('/api/personal' + (q ? '?q=' + encodeURIComponent(q) : ''))
+        .then(r => r.json())
+        .then(data => {
+          const tbody = document.querySelector('#tabla tbody');
+          tbody.innerHTML = '';
+          data.forEach(emp => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${emp.id}</td>
+              <td><input value="${emp.nombre}" id="nombre-${emp.id}"></td>
+              <td><input value="${emp.cargo}" id="cargo-${emp.id}"></td>
+              <td><input value="${emp.sueldo}" id="sueldo-${emp.id}" type="number"></td>
+              <td>
+                <button onclick="actualizar(${emp.id})">Actualizar</button>
+                <button onclick="eliminar(${emp.id})">Eliminar</button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        });
+    }
+    function actualizar(id) {
+      const nombre = document.getElementById('nombre-' + id).value;
+      const cargo = document.getElementById('cargo-' + id).value;
+      const sueldo = document.getElementById('sueldo-' + id).value;
+      fetch('/api/personal/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, cargo, sueldo })
+      }).then(() => cargarDatos(document.getElementById('buscar').value));
+    }
+    function eliminar(id) {
+      fetch('/api/personal/' + id, { method: 'DELETE' })
+        .then(() => cargarDatos(document.getElementById('buscar').value));
+    }
+    function buscar() {
+      const q = document.getElementById('buscar').value;
+      cargarDatos(q);
+    }
+    function crear() {
+      const nombre = document.getElementById('nuevo-nombre').value;
+      const cargo = document.getElementById('nuevo-cargo').value;
+      const sueldo = document.getElementById('nuevo-sueldo').value;
+      if (!nombre || !cargo || !sueldo) return alert('Completa todos los campos');
+      fetch('/api/personal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, cargo, sueldo })
+      }).then(() => {
+        document.getElementById('nuevo-nombre').value = '';
+        document.getElementById('nuevo-cargo').value = '';
+        document.getElementById('nuevo-sueldo').value = '';
+        cargarDatos(document.getElementById('buscar').value);
+      });
+    }
+    cargarDatos();
+  </script>
+</body>
+</html>

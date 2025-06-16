@@ -1,6 +1,7 @@
 const express = require('express');
 const mysql = require('mysql2');
 const bodyParser = require('body-parser');
+const path = require('path');
 const app = express();
 const port = 3000;
 
@@ -13,6 +14,7 @@ const connection = mysql.createConnection({
 });
 
 app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Página principal con tabla y botones
 app.get('/', (req, res) => {
@@ -84,9 +86,15 @@ app.get('/', (req, res) => {
   `);
 });
 
-// Endpoint para obtener datos
+// Endpoint para obtener datos (con búsqueda opcional)
 app.get('/api/personal', (req, res) => {
-  connection.query('SELECT * FROM personal', (err, results) => {
+  let sql = 'SELECT * FROM personal';
+  const params = [];
+  if (req.query.q) {
+    sql += ' WHERE nombre LIKE ? OR cargo LIKE ?';
+    params.push(`%${req.query.q}%`, `%${req.query.q}%`);
+  }
+  connection.query(sql, params, (err, results) => {
     if (err) {
       res.status(500).send('Error en consulta SQL');
       return;
@@ -99,6 +107,19 @@ app.get('/api/personal', (req, res) => {
     }));
     res.json(results);
   });
+});
+
+// Endpoint para crear empleado
+app.post('/api/personal', (req, res) => {
+  const { nombre, cargo, sueldo } = req.body;
+  connection.query(
+    'INSERT INTO personal (nombre, cargo, sueldo) VALUES (?, ?, ?)',
+    [nombre, cargo, sueldo],
+    (err, result) => {
+      if (err) return res.status(500).send('Error al crear');
+      res.json({ id: result.insertId });
+    }
+  );
 });
 
 // Endpoint para eliminar
